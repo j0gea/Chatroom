@@ -7,6 +7,8 @@
 
 -접속자 창에 이름 뜨게 하기(ing~)
 
+(래퍼런스) https://docs.oracle.com/javase/tutorial/uiswing/components/list.html -> ListDemo
+
 ## 할 것
 -center -> 그림판 자리
 
