@@ -5,13 +5,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.io.IOException;
 
+
 class ChatServerObject
 {
     private ServerSocket serverSocket;
     private List <ChatHandlerObject> list;
     public ChatServerObject(){
         try{
-            serverSocket= new ServerSocket (9500);
+            serverSocket= new ServerSocket (Chatroom.getPortnum());
             System.out.println("서버 준비 완료");
             list = new  ArrayList<ChatHandlerObject>();
             while(true){

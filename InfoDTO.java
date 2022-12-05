@@ -2,7 +2,7 @@ import java.util.*;
 import java.io.*;
 
 enum Info {
-    JOIN, EXIT, SEND
+    JOIN, EXIT, SEND, PLUS, MINU
 }
 
 class InfoDTO implements Serializable{

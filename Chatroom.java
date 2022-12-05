@@ -5,15 +5,27 @@ import javax.swing.JScrollPane;
 import javax.swing.event.*;
 import java.io.*;
 import java.net.*;
-
-
-
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 
 
 public class Chatroom extends JFrame {
 
+    static final int portNum = 9500;
+
+    static public int getPortnum(){
+        return portNum;
+    }
+    static final String serverIp = "192.168.0.5";
+
+    static public String getServerIp(){
+        return serverIp;
+    }
     JTextArea output;
     JTextField input;
     JButton sendBtn;
@@ -24,6 +36,8 @@ public class Chatroom extends JFrame {
 
     public DefaultListModel listModel;
 
+
+    //--------------------------------------UI START--------------------------------------------------//
     public Chatroom() {
         setSize(900, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -69,7 +83,7 @@ public class Chatroom extends JFrame {
     }
 
 
-    // ---------- 위쪽 ---------- //
+    // ----------------------------------------- Top --------------------------------------- //
     class Toppanel extends JPanel {
 
         Toppanel() {
@@ -85,14 +99,23 @@ public class Chatroom extends JFrame {
             Top_right() {
                 setBackground(Color.gray);
                 add(new JButton("쪽지보관함"));
-                add(new JButton("회원정보수정"));
+                JButton memberInfo = new JButton("회원정보수정");
+
+                memberInfo.addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        new mypage(null);
+                    }
+                });
+
+                add(memberInfo);
                 add(new JButton("로그아웃"));
             }
         }
     }
 
 
-    // ---------- 중간 ---------- //
+    // ----------------------------------------- Middle --------------------------------------- //
     class Middlepanel extends JPanel {
 
         Middlepanel() {
@@ -140,9 +163,10 @@ public class Chatroom extends JFrame {
     }
 
 
-    // ---------- 아래 ---------- //
+    // ----------------------------------------- Bottom --------------------------------------- //
     class Bottompanel extends JPanel implements ActionListener, Runnable {
-        JLabel nickNAME;
+        JLabel chatNick; // 바꿀 닉네임
+        String loginNick = loginPanel.getNAME();
 
         Bottompanel() {
             setLayout(new BorderLayout());
@@ -155,7 +179,7 @@ public class Chatroom extends JFrame {
             Bottom_right() {
                 setLayout(new BorderLayout());
 
-                add((new JLabel("친구")), BorderLayout.NORTH);
+                //add((new JLabel("친구")), BorderLayout.NORTH);
                 add((new Online()), BorderLayout.CENTER);
 
 
@@ -167,9 +191,6 @@ public class Chatroom extends JFrame {
                     implements ListSelectionListener {
                 private JList list;
 
-
-                private static final String hireString = "Hire";
-                private static final String fireString = "Fire";
                 private JButton fireButton;
                 private JTextField employeeName;
 
@@ -191,7 +212,7 @@ public class Chatroom extends JFrame {
                     JScrollPane listScrollPane = new JScrollPane(list);
 
 
-                    add((new JLabel("온라인")), BorderLayout.NORTH);
+                    add((new JLabel("온라인 접속자")), BorderLayout.NORTH);
                     add(listScrollPane, BorderLayout.CENTER);
 
                 }
@@ -248,8 +269,8 @@ public class Chatroom extends JFrame {
 
             class Bottom_left_down extends JPanel {
                 Bottom_left_down() {
-                    nickNAME = new JLabel("닉네임");
-                    add(nickNAME);
+                    chatNick = new JLabel(loginNick);
+                    add(chatNick);
 
 
                     input = new JTextField(55);
@@ -261,36 +282,39 @@ public class Chatroom extends JFrame {
 
         }
 
-
+        //--------------------------------------UI END--------------------------------------------------//
         public void service() {
 
-            String serverIP = JOptionPane.showInputDialog(this, "서버IP를 입력하세요", "192.168.0.9");  // ⺻                    ԷµǾ    
+            String serverIP = JOptionPane.showInputDialog(this, "서버IP를 입력하세요", serverIp);
             if (serverIP == null || serverIP.length() == 0) {
                 System.out.println("서버IP가 입력되지 않았습니다.");
                 System.exit(0);
             }
 
-            nickName = JOptionPane.showInputDialog(this, "닉네임을 입력하세요", "닉네임", JOptionPane.INFORMATION_MESSAGE);
-            if (nickName == null || nickName.length() == 0) {
-                nickName = "guest";
 
-            }
 
-            nickNAME.setText(nickName + " 님");
+                /*nickName = JOptionPane.showInputDialog(this, "닉네임을 입력하세요", "닉네임", JOptionPane.INFORMATION_MESSAGE);
+                if (nickName == null || nickName.length() == 0) {
+                    nickName = "guest";}*/
+
+                   nickName = loginNick;
+
+
+            chatNick.setText(loginNick + " 님");
 
             try {
-                socket = new Socket(serverIP, 9500);
+                socket = new Socket(serverIP, portNum);
 
                 reader = new ObjectInputStream(socket.getInputStream());
                 writer = new ObjectOutputStream(socket.getOutputStream());
                 System.out.println("전송 준비 완료!");
 
             } catch (UnknownHostException e) {
-                System.out.println("서버를 찾을 수 없음");
+                System.out.println("서버를 찾을 수 없습니다.");
                 e.printStackTrace();
                 System.exit(0);
             } catch (IOException e) {
-                System.out.println("서버와 연결이 안되었다.");
+                System.out.println("서버와 통신 불가.");
                 e.printStackTrace();
                 System.exit(0);
             }
@@ -300,9 +324,11 @@ public class Chatroom extends JFrame {
                 dto.setCommand(Info.JOIN);
                 dto.setNickName(nickName);
 
-                listModel.addElement(dto.getNickName());
+                // listModel.addElement(dto.getNickName());
                 writer.writeObject(dto);
                 writer.flush();
+
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -336,7 +362,15 @@ public class Chatroom extends JFrame {
 
                         int pos = output.getText().length();
                         output.setCaretPosition(pos);
-                    }
+
+                    } /*else if(dto.getCommand()==Info.PLUS){
+                        listModel.addElement(dto.getMessage());
+
+                    }else if(dto.getCommand()==Info.MINU){
+                        listModel.removeElement(dto.getMessage());}*/
+
+
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {
@@ -356,9 +390,14 @@ public class Chatroom extends JFrame {
                 if (msg.equals("exit")) {
                     dto.setCommand(Info.EXIT);
                 } else {
-                    dto.setCommand(Info.SEND);
-                    dto.setMessage(msg);
-                    dto.setNickName(nickName);
+
+                    msg = msg.trim(); //
+                    if(!msg.equals("")){
+                        dto.setCommand(Info.SEND);
+                        dto.setMessage(msg);
+                        dto.setNickName(nickName);
+                    }
+
                 }
                 writer.writeObject(dto);
                 writer.flush();
@@ -372,7 +411,154 @@ public class Chatroom extends JFrame {
     }
 
 
-//-------------------------------------------------------//
 
+
+}
+
+// 회원정보 수정창
+class mypage extends JFrame implements ActionListener{
+    JPanel mainPanel;
+    JPanel centerPanel;
+    JPanel downPanel;
+    JButton logout;
+    login l;
+    Font font = new Font("정보수정", Font.BOLD, 40);
+
+    JTextField changenameTF;
+    JTextField changepasswordTF;
+    JTextField changebirthTF;
+
+    JButton changenameButton;
+    JButton changepasswordButton;
+    JButton changebirthButton;
+
+    public mypage(login l) {
+        this.l=l;
+
+        mainPanel = new JPanel();
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+
+        JLabel mypageLabel = new JLabel("내 정보");
+        mypageLabel.setFont(font);
+        mypageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        centerPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        changenameTF = new JTextField(20);
+        changepasswordTF = new JTextField(20);
+        changebirthTF = new JTextField(10);
+        changenameButton = new JButton("이름 수정");
+        changepasswordButton = new JButton("비밀번호 수정");
+        changebirthButton = new JButton("생일 수정");
+
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(5, 5, 0, 0);
+
+        c.gridx = 0;
+        c.gridy = 0;
+        centerPanel.add(changenameTF, c);
+
+        c.gridx = 1;
+        c.gridy = 0;
+        centerPanel.add(changenameButton, c);
+
+        c.gridx = 0;
+        c.gridy = 1;
+        centerPanel.add(changepasswordTF, c);
+
+        c.gridx = 1;
+        c.gridy = 1;
+        centerPanel.add(changepasswordButton, c);
+
+        c.gridx = 0;
+        c.gridy = 2;
+        centerPanel.add(changebirthTF, c);
+
+        c.gridx = 1;
+        c.gridy = 2;
+        centerPanel.add(changebirthButton, c);
+
+        downPanel = new JPanel();
+        logout = new JButton("로그아웃");
+
+        mainPanel.add(mypageLabel);
+        mainPanel.add(centerPanel);
+        mainPanel.add(downPanel);
+
+
+
+
+
+        logout.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // TODO Auto-generated method stub
+                l.card.first(l.cardPanel);
+            }
+        });
+
+        changenameButton.addActionListener(this);
+        changepasswordButton.addActionListener(this);
+        changebirthButton.addActionListener(this);
+
+
+        add(mainPanel);
+        setSize(600, 300);
+        setVisible(true);
+
+
+    }
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        // TODO Auto-generated method stub
+
+        Connection con = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            con = l.getConnection();
+
+            switch (e.getActionCommand()) {
+
+                case "이름 바꾸기":
+                    String SQL = "update user_info set name=? where id=?";
+                    pstmt = con.prepareStatement(SQL);
+
+                    pstmt.setString(1, changenameTF.getText());
+                    pstmt.setString(2, l.id);
+
+                    int r = pstmt.executeUpdate();
+                    System.out.println("변경된 row : " + r);
+
+                    break;
+
+                case "비밀번호 바꾸기":
+                    String SQL1 = "update user_info set password=? where id=?";
+                    pstmt = con.prepareStatement(SQL1);
+
+                    pstmt.setString(1, changepasswordTF.getText());
+                    pstmt.setString(2, l.id);
+
+                    int r1 = pstmt.executeUpdate();
+                    System.out.println("변경된 row : " + r1);
+                    break;
+
+                case "생일 바꾸기":
+                    String SQL2 = "update user_info set birthday=? where id=?";
+                    pstmt = con.prepareStatement(SQL2);
+
+                    pstmt.setString(1, changepasswordTF.getText());
+                    pstmt.setString(2, l.id);
+
+                    int r2 = pstmt.executeUpdate();
+                    System.out.println("변경된 row : " + r2);
+                    break;
+            }
+        }catch (SQLException e1) {
+            e1.printStackTrace();
+        }
+    }
 
 }
