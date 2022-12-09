@@ -5,9 +5,7 @@ import javax.swing.JScrollPane;
 import javax.swing.event.*;
 import java.io.*;
 import java.net.*;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,6 +13,9 @@ import java.util.regex.Pattern;
 
 
 public class Chatroom extends JFrame {
+
+    public JLabel chatNick;
+    public String loginNick;
 
     static final int portNum = 9500;
 
@@ -40,7 +41,7 @@ public class Chatroom extends JFrame {
     //--------------------------------------UI START--------------------------------------------------//
     public Chatroom() {
         setSize(900, 700);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        //setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
 
         Toppanel Top = new Toppanel();
@@ -104,13 +105,113 @@ public class Chatroom extends JFrame {
                 memberInfo.addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        new mypage(null);
+                        try {
+                            new myPage();
+                        } catch (SQLException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                        //new mypage(null);
                     }
                 });
 
                 add(memberInfo);
                 add(new JButton("로그아웃"));
             }
+        }
+    }
+
+    public class myPage {
+
+        myPage () throws SQLException {
+            // 1. 아무것도 입력하지 않을경우 걸러내기
+            // 2. 가끔씩 null이 되는 경우가 발생함. 어떤 때인지는 잡아내지 못했음
+            // 3. 여기서 수정하면 pw가 일정한 형식(영어, 숫자, 특수문자 혼용)없이도 통과됨. 그거 확인 추가
+
+            login l = new login();
+            Connection con = null;
+            PreparedStatement pstmt = null;
+
+            con = l.getConnection();
+
+            String id;
+
+
+            String sql_query = String.format("SELECT id from student WHERE name = '%s'", nickName);
+            Statement stmt = con.createStatement();
+
+            ResultSet rset = stmt.executeQuery(sql_query);
+            rset.next();
+
+            id = rset.getString(1);
+
+
+
+            /* Simple JOptionPane ShowOptionDialogJava example */
+            String[] options = { "이름", "비밀번호", "생일" };
+            var selection = JOptionPane.showOptionDialog(null, "무엇을 수정하시겠습니까?", "내 정보 수정",
+                    0, 3, null, options, options[0]);
+
+
+
+
+            if (selection == 0) {
+                String answer = JOptionPane.showInputDialog("수정할 이름을 입력하세요", nickName);
+                String SQL = String.format("update student set name='%s' where id='%s'", answer, id);
+                pstmt = con.prepareStatement(SQL);
+                pstmt.executeUpdate();
+
+                //JOptionPane.showMessageDialog(null, "이름");
+
+                nickName = answer;
+                chatNick.setText(nickName + " 님");
+
+                con.close();
+            }
+            if (selection == 1) {
+
+                sql_query = String.format("SELECT password from student WHERE id = '%s'", id);
+                stmt = con.createStatement();
+
+                rset = stmt.executeQuery(sql_query);
+                rset.next();
+
+                String pw = rset.getString(1);
+
+
+
+                String answer = JOptionPane.showInputDialog("수정할 비밀번호를 입력하세요", pw);
+
+                String SQL = String.format("update student set password='%s' where id='%s'", answer, id);
+                pstmt = con.prepareStatement(SQL);
+                pstmt.executeUpdate();
+
+
+                //JOptionPane.showMessageDialog(null, "비밀번호");
+
+                con.close();
+            }
+            if (selection == 2) {
+
+                sql_query = String.format("SELECT birthday from student WHERE id = '%s'", id);
+                stmt = con.createStatement();
+
+                rset = stmt.executeQuery(sql_query);
+                rset.next();
+
+                String birth = rset.getString(1);
+
+                String answer = JOptionPane.showInputDialog("수정할 생일을 입력하세요", birth);
+
+                String SQL = String.format("update student set birthday='%s' where id='%s'", answer, id);
+                pstmt = con.prepareStatement(SQL);
+                pstmt.executeUpdate();
+
+                //JOptionPane.showMessageDialog(null, "생일");
+
+                con.close();
+            }
+
+            con.close();
         }
     }
 
@@ -165,10 +266,10 @@ public class Chatroom extends JFrame {
 
     // ----------------------------------------- Bottom --------------------------------------- //
     class Bottompanel extends JPanel implements ActionListener, Runnable {
-        JLabel chatNick; // 바꿀 닉네임
-        String loginNick = loginPanel.getNAME();
+
 
         Bottompanel() {
+            loginNick = login.loginPanel.getNAME();
             setLayout(new BorderLayout());
             add((new Bottom_right()), BorderLayout.EAST);
             add((new Bottom_left()), BorderLayout.WEST);
@@ -285,6 +386,8 @@ public class Chatroom extends JFrame {
         //--------------------------------------UI END--------------------------------------------------//
         public void service() {
 
+            // ----- 로그인창 dialog로 추가 ----- //
+
             String serverIP = JOptionPane.showInputDialog(this, "서버IP를 입력하세요", serverIp);
             if (serverIP == null || serverIP.length() == 0) {
                 System.out.println("서버IP가 입력되지 않았습니다.");
@@ -297,7 +400,7 @@ public class Chatroom extends JFrame {
                 if (nickName == null || nickName.length() == 0) {
                     nickName = "guest";}*/
 
-                   nickName = loginNick;
+            nickName = loginNick;
 
 
             chatNick.setText(loginNick + " 님");
@@ -523,7 +626,7 @@ class mypage extends JFrame implements ActionListener{
             switch (e.getActionCommand()) {
 
                 case "이름 바꾸기":
-                    String SQL = "update user_info set name=? where id=?";
+                    String SQL = "update student set name=? where id=?";
                     pstmt = con.prepareStatement(SQL);
 
                     pstmt.setString(1, changenameTF.getText());
@@ -535,7 +638,7 @@ class mypage extends JFrame implements ActionListener{
                     break;
 
                 case "비밀번호 바꾸기":
-                    String SQL1 = "update user_info set password=? where id=?";
+                    String SQL1 = "update student set password=? where id=?";
                     pstmt = con.prepareStatement(SQL1);
 
                     pstmt.setString(1, changepasswordTF.getText());
@@ -546,7 +649,7 @@ class mypage extends JFrame implements ActionListener{
                     break;
 
                 case "생일 바꾸기":
-                    String SQL2 = "update user_info set birthday=? where id=?";
+                    String SQL2 = "update student set birthday=? where id=?";
                     pstmt = con.prepareStatement(SQL2);
 
                     pstmt.setString(1, changepasswordTF.getText());
