@@ -191,7 +191,6 @@ public class login {
                     // 1. 정보 설정
                     String sql_query = String.format("SELECT password FROM student WHERE id = '%s' AND password = '%s'", id, pass);
                     //쿼리문 설정
-
                     InfoDTO dto = new InfoDTO();
                     dto.setCommand(Info.SENDDB);
                     dto.setMessage(sql_query);
@@ -229,6 +228,7 @@ public class login {
                         sql_query = String.format("SELECT name FROM student WHERE id = '%s'", id);
                         dto = new InfoDTO();
                         dto.setCommand(Info.SENDDB);
+                        dto.setMessage(sql_query);
 
                         // 2. 전송
                         try {
@@ -250,7 +250,7 @@ public class login {
                         } catch (ClassNotFoundException ex) {
                             throw new RuntimeException(ex);
                         }
-
+                        System.out.println(dto.getMessage());
                         // 받은 값 닉네임으로, 이 창 닫기, Chatroom 열기
                         name = dto.getMessage();
                         jf.dispose();
