@@ -254,7 +254,7 @@ public class Chatroom extends JFrame {
 
 
         Bottompanel() {
-            loginNick = login.loginPanel.getNAME();
+            loginNick = loginPanel.getNAME();
             setLayout(new BorderLayout());
             add((new Bottom_right()), BorderLayout.EAST);
             add((new Bottom_left()), BorderLayout.WEST);
