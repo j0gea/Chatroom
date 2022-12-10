@@ -1,11 +1,41 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.sql.*;
 import java.util.*;
 import java.util.regex.*;
 import javax.swing.*;
 
+// 몇몇 문제 때문에 login class안에 다 집어넣었습니다
+// OOP가 서툴러서 죄송합니다...
 public class login {
+
+    // 통신을 위한 변수들 -----
+    static final String serverIp = "192.168.0.5";
+    static final int portNum = 9500;
+    static public int getPortnum(){
+        return portNum;
+    }
+    static String serverIP;
+
+    static public String getServerIp() {
+        return serverIP;
+    }
+
+    // login에서 '통신'이 먼저 이루어지기 떄문에 serverIP를 두번 입력받을 필요가 없도록
+    // 이대로 Chatroom에서도 getServerIp라는 메소드를 이용해 받아갑니다.
+    // 우선 통신이 2번 열리긴 합니다. 로그인에서 한 번 쳇룸에서 한 번.
+    // 그렇게 하는 이유가 첫째, runnuble 의 사용법을 아직 완전히 익히지 못해서. 둘째, login.java가 닫히면 소켓통신이 끊기는지
+    // 확인을 해보지 않아서.
+    ObjectInputStream reader = null;
+    ObjectOutputStream writer = null;
+    public DefaultListModel listModel;
+    Socket socket;
+    // -------------------------
     public JFrame jf;
     JPanel cardPanel;
     login l;
@@ -15,6 +45,8 @@ public class login {
     public static void main(String[] args) {
         login l = new login();
         l.setFrame(l);
+        l.service(); // 통신 부분
+
     }
 
     public void setFrame(login lpro) {
@@ -33,8 +65,12 @@ public class login {
         jf.setSize(550, 700);
         jf.setVisible(true);
 
+
     }
 
+    // [getConnection] 이 함수는 서버쪽에서 그대로 받아 사용합니다.
+    // 이후에 모든 DB가 서버를 통해서만 통신하도록 수정되면 굳이 여기에 있을 필요가 없으므로
+    // 서버나 핸들러 쪽에 옮겨두겠습니다.
     public Connection getConnection() throws SQLException {
         Connection con = null;
         String MySQlPW = "13579";
@@ -128,6 +164,8 @@ public class login {
                     l.card.next(l.cardPanel); //회원가입버튼을 누르면 창 이동
                 }
             });
+
+
         }
 
         @Override
@@ -146,45 +184,86 @@ public class login {
                     String id = idTextField.getText();
                     String pass = passTextField.getText();
 
+                    // 클라이언트 ->(쿼리 정보)-> 서버 -> 서버의 DB
+                    // 서버의 DB를 통해 DB 접속이 이루어 집니다.
+
+
+                    // 1. 정보 설정
+                    String sql_query = String.format("SELECT password FROM student WHERE id = '%s' AND password = '%s'", id, pass);
+                    //쿼리문 설정
+
+                    InfoDTO dto = new InfoDTO();
+                    dto.setCommand(Info.SENDDB);
+                    dto.setMessage(sql_query);
+                    // dto Command와 Message를 설정하는 부분입니다.
+
+
+                    // 2. 전송
+                    // 설정한 dto를 전송합니다.
+                    // 원래 writer.writeObject(dto); / writer.flush(); 두 줄로 이루어졌으나 어쩐지... 익셉션(예외) 달라고해서...
                     try {
-                        String sql_query = String.format("SELECT password FROM student WHERE id = '%s' AND password = '%s'", id, pass);
-                        //SELECT를 통해 로그인기능 구현
-                        Connection con = l.getConnection();
-                        Statement stmt = con.createStatement();
-
-                        ResultSet rset = stmt.executeQuery(sql_query);
-                        rset.next();
-
-                        if (pass.equals(rset.getString(1))) {
-                            // ----- 닉네임 넘겨주기 ----- //
-                            sql_query = String.format("SELECT name FROM student WHERE id = '%s'", id);
-                            con = l.getConnection();
-                            stmt = con.createStatement();
-
-                            rset = stmt.executeQuery(sql_query);
-                            if (rset.next()) {
-                                name = rset.getString(1);
-                            }
-                            new Chatroom();
-                            jf.dispose();
-                            con.close();
-
-                        } else
-                            JOptionPane.showMessageDialog(this, "Login Failed", "로그인 실패", 1);
-                    } catch (SQLException ex) {
-                        JOptionPane.showMessageDialog(this, "Login Failed", "로그인 실패", 1);
-                        System.out.println("SQLException" + ex);
-
-                        // -- test -- //
-                        //name = id;
-                        //new Chatroom();
+                        writer.writeObject(dto);
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
                     }
+                    try {
+                        writer.flush();
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+
+                    // 3. 수신
+                    // reader 용 dto 설정합니다.
+                    try {
+                        dto = (InfoDTO) reader.readObject();
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    } catch (ClassNotFoundException ex) {
+                        throw new RuntimeException(ex);
+                    }
+
+                    // 이 이후는 원래 로그인이 이루어지던 절차 그대로입니다.
+                    if (pass.equals(dto.getMessage())) {
+
+                        // 1. 정보 설정
+                        sql_query = String.format("SELECT name FROM student WHERE id = '%s'", id);
+                        dto = new InfoDTO();
+                        dto.setCommand(Info.SENDDB);
+
+                        // 2. 전송
+                        try {
+                            writer.writeObject(dto);
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                        try {
+                            writer.flush();
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+
+                        // 3. 수신
+                        try {
+                            dto = (InfoDTO) reader.readObject();
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        } catch (ClassNotFoundException ex) {
+                            throw new RuntimeException(ex);
+                        }
+
+                        // 받은 값 닉네임으로, 이 창 닫기, Chatroom 열기
+                        name = dto.getMessage();
+                        jf.dispose();
+                        new Chatroom();
+                    }
+                    // 혹여나 통신이 실패했을 경우 뜨는 메시지 하나 정도 있어도 괜찮을 것 같습니다.
                     break;
             }
         }
 
     }
 
+    // 회원가입은 아직 설정이 되어있지 않습니다.
     class signupPanel extends JPanel {
         JTextField idTF;
         JPasswordField passTF;
@@ -391,4 +470,43 @@ public class login {
 
         }
     }
+
+
+    public void service() {
+
+        serverIP = JOptionPane.showInputDialog(null, "서버IP를 입력하세요", serverIp);
+        if (serverIP == null || serverIP.length() == 0) {
+            System.out.println("서버IP가 입력되지 않았습니다.");
+            System.exit(0);
+        }
+
+
+        try {
+            socket = new Socket(serverIP, portNum);
+            reader = new ObjectInputStream(socket.getInputStream());
+            writer = new ObjectOutputStream(socket.getOutputStream());
+            System.out.println("전송 준비 완료!");
+
+        } catch (UnknownHostException e) {
+            System.out.println("서버를 찾을 수 없습니다.");
+            e.printStackTrace();
+            System.exit(0);
+        } catch (IOException e) {
+            System.out.println("서버와 통신 불가.");
+            e.printStackTrace();
+            System.exit(0);
+        }
+
+        // run이 필요하지 않습니다.
+
+
+    }
+
 }
+
+
+
+
+
+
+

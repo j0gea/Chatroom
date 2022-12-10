@@ -16,17 +16,6 @@ public class Chatroom extends JFrame {
 
     public JLabel chatNick;
     public String loginNick;
-
-    static final int portNum = 9500;
-
-    static public int getPortnum(){
-        return portNum;
-    }
-    static final String serverIp = "192.168.0.5";
-
-    static public String getServerIp(){
-        return serverIp;
-    }
     JTextArea output;
     JTextField input;
     JButton sendBtn;
@@ -34,15 +23,12 @@ public class Chatroom extends JFrame {
     ObjectInputStream reader = null;
     ObjectOutputStream writer = null;
     String nickName;
-
     public DefaultListModel listModel;
-
 
     //--------------------------------------UI START--------------------------------------------------//
     public Chatroom() {
         setSize(900, 700);
-        //setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         Toppanel Top = new Toppanel();
         add(Top, BorderLayout.NORTH);
@@ -110,7 +96,6 @@ public class Chatroom extends JFrame {
                         } catch (SQLException ex) {
                             throw new RuntimeException(ex);
                         }
-                        //new mypage(null);
                     }
                 });
 
@@ -120,11 +105,13 @@ public class Chatroom extends JFrame {
         }
     }
 
+    // 회원 정보 수정 Dialog
+    // 내장 DB와 연동되어 있습니다
     public class myPage {
 
         myPage () throws SQLException {
             // 1. 아무것도 입력하지 않을경우 걸러내기
-            // 2. 가끔씩 null이 되는 경우가 발생함. 어떤 때인지는 잡아내지 못했음
+            // 2. 취소를 누르면 NULL값이 됨
             // 3. 여기서 수정하면 pw가 일정한 형식(영어, 숫자, 특수문자 혼용)없이도 통과됨. 그거 확인 추가
 
             login l = new login();
@@ -146,27 +133,27 @@ public class Chatroom extends JFrame {
 
 
 
-            /* Simple JOptionPane ShowOptionDialogJava example */
             String[] options = { "이름", "비밀번호", "생일" };
             var selection = JOptionPane.showOptionDialog(null, "무엇을 수정하시겠습니까?", "내 정보 수정",
                     0, 3, null, options, options[0]);
 
 
 
-
+            // 이름
             if (selection == 0) {
                 String answer = JOptionPane.showInputDialog("수정할 이름을 입력하세요", nickName);
                 String SQL = String.format("update student set name='%s' where id='%s'", answer, id);
                 pstmt = con.prepareStatement(SQL);
                 pstmt.executeUpdate();
 
-                //JOptionPane.showMessageDialog(null, "이름");
 
                 nickName = answer;
                 chatNick.setText(nickName + " 님");
 
                 con.close();
             }
+
+            // 비밀번호
             if (selection == 1) {
 
                 sql_query = String.format("SELECT password from student WHERE id = '%s'", id);
@@ -186,10 +173,10 @@ public class Chatroom extends JFrame {
                 pstmt.executeUpdate();
 
 
-                //JOptionPane.showMessageDialog(null, "비밀번호");
-
                 con.close();
             }
+
+            // 생일
             if (selection == 2) {
 
                 sql_query = String.format("SELECT birthday from student WHERE id = '%s'", id);
@@ -205,8 +192,6 @@ public class Chatroom extends JFrame {
                 String SQL = String.format("update student set birthday='%s' where id='%s'", answer, id);
                 pstmt = con.prepareStatement(SQL);
                 pstmt.executeUpdate();
-
-                //JOptionPane.showMessageDialog(null, "생일");
 
                 con.close();
             }
@@ -386,28 +371,12 @@ public class Chatroom extends JFrame {
         //--------------------------------------UI END--------------------------------------------------//
         public void service() {
 
-            // ----- 로그인창 dialog로 추가 ----- //
-
-            String serverIP = JOptionPane.showInputDialog(this, "서버IP를 입력하세요", serverIp);
-            if (serverIP == null || serverIP.length() == 0) {
-                System.out.println("서버IP가 입력되지 않았습니다.");
-                System.exit(0);
-            }
-
-
-
-                /*nickName = JOptionPane.showInputDialog(this, "닉네임을 입력하세요", "닉네임", JOptionPane.INFORMATION_MESSAGE);
-                if (nickName == null || nickName.length() == 0) {
-                    nickName = "guest";}*/
-
-            nickName = loginNick;
-
-
-            chatNick.setText(loginNick + " 님");
+            // login 쪽에서 가져온 ServerIP&Portnum 입니다.
+            String serverIP = login.getServerIp();
+            int portNum = login.getPortnum();
 
             try {
                 socket = new Socket(serverIP, portNum);
-
                 reader = new ObjectInputStream(socket.getInputStream());
                 writer = new ObjectOutputStream(socket.getOutputStream());
                 System.out.println("전송 준비 완료!");
@@ -421,26 +390,37 @@ public class Chatroom extends JFrame {
                 e.printStackTrace();
                 System.exit(0);
             }
-            try {
 
-                InfoDTO dto = new InfoDTO();
-                dto.setCommand(Info.JOIN);
-                dto.setNickName(nickName);
-
-                // listModel.addElement(dto.getNickName());
-                writer.writeObject(dto);
-                writer.flush();
+                nickName = loginNick;
+                chatNick.setText(loginNick + " 님");
 
 
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+                try {
 
-            Thread t = new Thread(this);
-            t.start();
-            input.addActionListener(this);
-            sendBtn.addActionListener(this);
+                    InfoDTO dto = new InfoDTO();
+                    dto.setCommand(Info.JOIN);
+                    dto.setNickName(nickName);
+
+                    writer.writeObject(dto);
+                    writer.flush();
+
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                Thread t = new Thread(this);
+                t.start();
+                input.addActionListener(this);
+                sendBtn.addActionListener(this);
+
         }
+
+
+
+
+
+
 
 
         //Runnable
@@ -515,153 +495,5 @@ public class Chatroom extends JFrame {
 
 
 
-
-}
-
-// 회원정보 수정창
-class mypage extends JFrame implements ActionListener{
-    JPanel mainPanel;
-    JPanel centerPanel;
-    JPanel downPanel;
-    JButton logout;
-    login l;
-    Font font = new Font("정보수정", Font.BOLD, 40);
-
-    JTextField changenameTF;
-    JTextField changepasswordTF;
-    JTextField changebirthTF;
-
-    JButton changenameButton;
-    JButton changepasswordButton;
-    JButton changebirthButton;
-
-    public mypage(login l) {
-        this.l=l;
-
-        mainPanel = new JPanel();
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-
-        JLabel mypageLabel = new JLabel("내 정보");
-        mypageLabel.setFont(font);
-        mypageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        centerPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints c = new GridBagConstraints();
-        changenameTF = new JTextField(20);
-        changepasswordTF = new JTextField(20);
-        changebirthTF = new JTextField(10);
-        changenameButton = new JButton("이름 수정");
-        changepasswordButton = new JButton("비밀번호 수정");
-        changebirthButton = new JButton("생일 수정");
-
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.insets = new Insets(5, 5, 0, 0);
-
-        c.gridx = 0;
-        c.gridy = 0;
-        centerPanel.add(changenameTF, c);
-
-        c.gridx = 1;
-        c.gridy = 0;
-        centerPanel.add(changenameButton, c);
-
-        c.gridx = 0;
-        c.gridy = 1;
-        centerPanel.add(changepasswordTF, c);
-
-        c.gridx = 1;
-        c.gridy = 1;
-        centerPanel.add(changepasswordButton, c);
-
-        c.gridx = 0;
-        c.gridy = 2;
-        centerPanel.add(changebirthTF, c);
-
-        c.gridx = 1;
-        c.gridy = 2;
-        centerPanel.add(changebirthButton, c);
-
-        downPanel = new JPanel();
-        logout = new JButton("로그아웃");
-
-        mainPanel.add(mypageLabel);
-        mainPanel.add(centerPanel);
-        mainPanel.add(downPanel);
-
-
-
-
-
-        logout.addActionListener(new ActionListener() {
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // TODO Auto-generated method stub
-                l.card.first(l.cardPanel);
-            }
-        });
-
-        changenameButton.addActionListener(this);
-        changepasswordButton.addActionListener(this);
-        changebirthButton.addActionListener(this);
-
-
-        add(mainPanel);
-        setSize(600, 300);
-        setVisible(true);
-
-
-    }
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        // TODO Auto-generated method stub
-
-        Connection con = null;
-        PreparedStatement pstmt = null;
-
-        try {
-            con = l.getConnection();
-
-            switch (e.getActionCommand()) {
-
-                case "이름 바꾸기":
-                    String SQL = "update student set name=? where id=?";
-                    pstmt = con.prepareStatement(SQL);
-
-                    pstmt.setString(1, changenameTF.getText());
-                    pstmt.setString(2, l.id);
-
-                    int r = pstmt.executeUpdate();
-                    System.out.println("변경된 row : " + r);
-
-                    break;
-
-                case "비밀번호 바꾸기":
-                    String SQL1 = "update student set password=? where id=?";
-                    pstmt = con.prepareStatement(SQL1);
-
-                    pstmt.setString(1, changepasswordTF.getText());
-                    pstmt.setString(2, l.id);
-
-                    int r1 = pstmt.executeUpdate();
-                    System.out.println("변경된 row : " + r1);
-                    break;
-
-                case "생일 바꾸기":
-                    String SQL2 = "update student set birthday=? where id=?";
-                    pstmt = con.prepareStatement(SQL2);
-
-                    pstmt.setString(1, changepasswordTF.getText());
-                    pstmt.setString(2, l.id);
-
-                    int r2 = pstmt.executeUpdate();
-                    System.out.println("변경된 row : " + r2);
-                    break;
-            }
-        }catch (SQLException e1) {
-            e1.printStackTrace();
-        }
-    }
 
 }

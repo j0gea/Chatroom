@@ -10,10 +10,9 @@ class ChatServerObject
     private List <ChatHandlerObject> list;
     public ChatServerObject(){
         try{
-            //포트번호 하드코딩  변수 portNum = 9500
             serverSocket= new ServerSocket (9500);
             System.out.println("서버 준비 완료");
-            list = new  ArrayList<ChatHandlerObject>();
+            list = new ArrayList<ChatHandlerObject>();
             while(true){
                 Socket socket = serverSocket.accept();
                 ChatHandlerObject handler = new  ChatHandlerObject(socket,list);  //스레드를 생성한 것이랑 동일함! 떄문에 시자해주어야
