@@ -1,12 +1,10 @@
+import javax.swing.*;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.List;
 import java.util.ArrayList;
 import java.io.IOException;
@@ -105,16 +103,80 @@ class ChatHandlerObject extends Thread //처리해주는 곳(소켓에 대한 �
                     // 2. 쿼리문 적용 (셀렉문과 업데이트 etc... 로 나누려고 함)
                     // 왜냐면 업데이트/삭제 문은 응답이 필요하지 않기 때문 T/F 응답이면 될것같아서
 
-                    // 2-1. 셀렉문인 경우
+                    // 2-1. SELECT문인 경우
                     if (sql_query.contains("SELECT")) {
-                        ResultSet rset = stmt.executeQuery(sql_query);
-                        rset.next();
+                        ResultSet rset;
+                        try{
+                            rset = stmt.executeQuery(sql_query);
+                            //System.out.println("rset = stmt.executeQuery(sql_query); 처리중");
+                        } catch(SQLException ex) {
+                            sendDto.setCommand(Info.SENDDB);
+                            sendDto.setMessage("SQLException" + ex);
+                            writer.writeObject(sendDto);
+                            writer.flush();
+                            break;
+                        }
+
 
                         // 3. 결과 재전송
-                        sendDto.setCommand(Info.SENDDB);
-                        sendDto.setMessage(rset.getString(1));
+
+                        if (rset.next()){
+                            sendDto.setCommand(Info.SENDDB);
+                            sendDto.setMessage(rset.getString(1));
+                            // System.out.println(rset.getString(1));
+                        } else{
+                            sendDto.setCommand(Info.SENDDB);
+                            sendDto.setMessage("error");
+                            // System.out.println("sendDto.setMessage("error");");
+                        }
                         writer.writeObject(sendDto);
                         writer.flush();
+                        // System.out.println("결과 재전송 완료");
+
+                    }
+                    // 2-3. UPDATE 일경우
+                    else if(sql_query.contains("UPDATE")){
+                        // System.out.println("UPDATE");
+                    }
+                    // 2-3. INSERT문인 경우, UPDATE나 SELECT가 안올거다!!!!
+                    else {
+                        System.out.println(dto.getMessage());
+                        int r;
+                        try {
+                            String sql = "insert into student(id, password, name, birthday, gender, phoneNumber) values (?,?,?,?,?,?)";
+                            PreparedStatement pstmt = con.prepareStatement(sql);
+                            System.out.println("PreparedStatement 완료");
+
+                            String[] sqlParameta = sql_query.split(" ");
+                            pstmt.setString(1, sqlParameta[0]);
+                            pstmt.setString(2, sqlParameta[1]);
+                            pstmt.setString(3, sqlParameta[2]);
+                            pstmt.setString(4, sqlParameta[3]);
+                            pstmt.setString(5, sqlParameta[4]);
+                            pstmt.setString(6, sqlParameta[5]);
+
+                            r = pstmt.executeUpdate();
+
+                            System.out.println("pstmt.executeUpdate(); 완료");
+                            System.out.println(r);
+
+                            // 3. 결과 재전송
+                            sendDto.setCommand(Info.SENDDB);
+                            sendDto.setMessage(String.valueOf(r));
+                            writer.writeObject(sendDto);
+                            writer.flush();
+                            System.out.println("재전송 완료");
+                            System.out.println(r);
+
+                        } catch (SQLException e1) {
+                            System.out.println("SQL error" + e1.getMessage());
+                            sendDto.setCommand(Info.SENDDB);
+                            sendDto.setMessage("SQL error" + e1.getMessage());
+                            writer.writeObject(sendDto);
+                            writer.flush();
+                            System.out.println("catch에서의 con.close();");
+                        }
+
                     }
                     // 4. DB 접속 끊기
                     con.close();

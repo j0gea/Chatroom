@@ -232,19 +232,24 @@ class loginPanel extends JPanel implements ActionListener {
                 // 원래 writer.writeObject(dto); / writer.flush(); 두 줄로 이루어졌으나 어쩐지... 익셉션(예외) 달라고해서...
                 try {
                     l.writer.writeObject(dto);
+                    // System.out.println("l.writer.writeObject(dto); 완료");
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
                 try {
                     l.writer.flush();
+                    // System.out.println("l.writer.flush(); 완료");
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
+                // System.out.println("첫번째 전송");
 
                 // 3. 수신
                 // reader 용 dto 설정합니다.
                 try {
                     dto = (InfoDTO) l.reader.readObject();
+                    // System.out.println("답장 수신 완료");
+                    // System.out.println(dto.getMessage());
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 } catch (ClassNotFoundException ex) {
@@ -263,14 +268,17 @@ class loginPanel extends JPanel implements ActionListener {
                     // 2. 전송
                     try {
                         l.writer.writeObject(dto);
+                        // System.out.println("l.writer.writeObject(dto); 완료");
                     } catch (IOException ex) {
                         throw new RuntimeException(ex);
                     }
                     try {
                         l.writer.flush();
+                        // System.out.println("l.writer.flush(); 완료");
                     } catch (IOException ex) {
                         throw new RuntimeException(ex);
                     }
+                    // System.out.println("전송완료");
 
                     // 3. 수신
                     try {
@@ -280,12 +288,13 @@ class loginPanel extends JPanel implements ActionListener {
                     } catch (ClassNotFoundException ex) {
                         throw new RuntimeException(ex);
                     }
+
                     // 받은 값 닉네임으로, 이 창 닫기, Chatroom 열기
                     name = dto.getMessage();
                     l.jf.dispose();
                     new Chatroom();
-                }
-                // 혹여나 통신이 실패했을 경우 뜨는 메시지 하나 정도 있어도 괜찮을 것 같습니다.
+                } else
+                    JOptionPane.showMessageDialog(this, "Login Failed", "로그인 실패", 1);
                 break;
         }
     }
@@ -443,14 +452,14 @@ class signupPanel extends JPanel {
         registerButton.addActionListener(new ActionListener() { //회원가입버튼
             @Override
             public void actionPerformed(ActionEvent e) {
-                id = idTF.getText();
-                pass = new String(passTF.getPassword());
-                passRe = new String(passReTF.getPassword());
-                name = nameTF.getText();
-                year = yearTF.getText();
-                phone = phoneTF.getText();
+                id = idTF.getText().replaceAll("\\s", "");
+                pass = new String(passTF.getPassword()).replaceAll("\\s", "");
+                passRe = new String(passReTF.getPassword()).replaceAll("\\s", "");
+                name = nameTF.getText().replaceAll("\\s", "");
+                year = yearTF.getText().replaceAll("\\s", "");
+                phone = phoneTF.getText().replaceAll("\\s", "");
 
-                String sql = "insert into student(id, password, name, birthday, gender, phoneNumber) values (?,?,?,?,?,?)";
+
                 //INSERT로 회원가입기능 구현
                 //이후에 PreparedStatement를 이용해 값을 넘겨준다.
 
@@ -463,31 +472,59 @@ class signupPanel extends JPanel {
                     JOptionPane.showMessageDialog(null, "비밀번호가 서로 일치하지 않습니다", "비밀번호 오류", 1);
 
                 } else {
+
+                    // 1. 정보 설정
+                    // 파라메타설정
+                    String sqlParameta = id + " " + pass + " " + name + " " + year + " " + gender + " " + phone;
+
+                    InfoDTO dto = new InfoDTO();
+                    dto.setCommand(Info.SENDDB);
+                    dto.setMessage(sqlParameta); // else에 걸려야 한다.
+                    System.out.println("파라메터 설정 완료");
+                    System.out.println(sqlParameta);
+
+                    // 2. 전송
+                    // 설정한 dto를 전송합니다.
                     try {
-                        Connection con = l.getConnection();
+                        l.writer.writeObject(dto);
+                        System.out.println("l.writer.writeObject(dto); 완료");
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    try {
+                        l.writer.flush();
+                        System.out.println("l.writer.flush(); 완료");
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
 
-                        PreparedStatement pstmt = con.prepareStatement(sql);
 
-                        String date = yearTF.getText() + "-" + month + "-" + day;
+                    // 3. 수신
+                    // reader 용 dto 설정합니다.
+                    try {
+                        dto = (InfoDTO) l.reader.readObject();
+                        System.out.println(dto.getMessage());
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    } catch (ClassNotFoundException ex) {
+                        throw new RuntimeException(ex);
+                    }
 
-                        pstmt.setString(1, idTF.getText());
-                        pstmt.setString(2, pass);
-                        pstmt.setString(3, nameTF.getText());
-                        pstmt.setString(4, date);
-                        pstmt.setString(5, gender);
-                        pstmt.setString(6, phoneTF.getText());
-
-                        int r = pstmt.executeUpdate();
-                        System.out.println("변경된 row " + r);
-                        JOptionPane.showMessageDialog(null, "회원 가입 완료", "회원가입", 1);
-                        l.card.previous(l.cardPanel); //회원가입이 완료되면 다시 로그인창으로 이동
-                    } catch (SQLException e1) {
-                        System.out.println("SQL error" + e1.getMessage());
-                        if (e1.getMessage().contains("PRIMARY")) {
+                    if (dto.getMessage().contains("SQL error")) {
+                        if (dto.getMessage().contains("PRIMARY")) {
                             JOptionPane.showMessageDialog(null, "아이디 중복", "아이디 중복 오류", 1);
                         } else
                             JOptionPane.showMessageDialog(null, "정보를 제대로 입력해주세요", "오류", 1);
+                    }else{
+                        int r = Integer.valueOf(dto.getMessage());
+                        System.out.println("변경된 row " + r);
+                        JOptionPane.showMessageDialog(null, "회원 가입 완료", "회원가입", 1);
+                        l.card.previous(l.cardPanel); //회원가입이 완료되면 다시 로그인창으로 이동
                     }
+
+
+
+
                 }
             }
         });
