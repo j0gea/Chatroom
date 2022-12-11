@@ -109,7 +109,7 @@ public class Chatroom extends JFrame {
     // 내장 DB와 연동되어 있습니다
     public class myPage {
 
-        myPage () throws SQLException {
+        myPage() throws SQLException {
             // 1. 아무것도 입력하지 않을경우 걸러내기
             // 2. 취소를 누르면 NULL값이 됨
             // 3. 여기서 수정하면 pw가 일정한 형식(영어, 숫자, 특수문자 혼용)없이도 통과됨. 그거 확인 추가
@@ -132,11 +132,9 @@ public class Chatroom extends JFrame {
             id = rset.getString(1);
 
 
-
-            String[] options = { "이름", "비밀번호", "생일" };
+            String[] options = {"이름", "비밀번호", "생일", "탈퇴"};
             var selection = JOptionPane.showOptionDialog(null, "무엇을 수정하시겠습니까?", "내 정보 수정",
                     0, 3, null, options, options[0]);
-
 
 
             // 이름
@@ -163,7 +161,6 @@ public class Chatroom extends JFrame {
                 rset.next();
 
                 String pw = rset.getString(1);
-
 
 
                 String answer = JOptionPane.showInputDialog("수정할 비밀번호를 입력하세요", pw);
@@ -196,10 +193,28 @@ public class Chatroom extends JFrame {
                 con.close();
             }
 
-            con.close();
+            if (selection == 3) {
+                String SQL = String.format("delete from student where id='%s'", id);
+                pstmt = con.prepareStatement(SQL);
+
+                String[] yes_no = {"예(Y)", "아니오(N)"};
+
+                var unresign = JOptionPane.showOptionDialog(null, "탈퇴하시겠습니까?", "탈퇴",
+                        0, 3, null, yes_no, yes_no[0]);
+                if (unresign == 0) {
+                    pstmt.executeUpdate();
+                    pstmt = con.prepareStatement(SQL);
+                }
+                dispose();
+                new login();
+                l.setFrame(l);
+                l.service();
+
+
+
+            }
         }
     }
-
 
     // ----------------------------------------- Middle --------------------------------------- //
     class Middlepanel extends JPanel {
