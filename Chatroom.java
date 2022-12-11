@@ -10,10 +10,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
-
-
 public class Chatroom extends JFrame {
-
+    String serverIP = login.getServerIp();
+    int portNum = login.getPortnum();
     public JLabel chatNick;
     public String loginNick;
     JTextArea output;
@@ -108,28 +107,80 @@ public class Chatroom extends JFrame {
     // 회원 정보 수정 Dialog
     // 내장 DB와 연동되어 있습니다
     public class myPage {
+        Socket mySocket;
+        ObjectInputStream myReader;
+        ObjectOutputStream myWriter;
 
         myPage() throws SQLException {
+
+            // --- 새로운 통신 --- //
+            // 당연히 채팅의 통신과 이 통신은 개별로 취급되어야 할 것 같아서...
+            // Caused by: java.io.StreamCorruptedException: invalid type code: 00
+            // https://micropilot.tistory.com/2945
+
+            try {
+                mySocket = new Socket(serverIP, portNum);
+                myReader = new ObjectInputStream(mySocket.getInputStream());
+                myWriter = new ObjectOutputStream(mySocket.getOutputStream());
+                System.out.println("전송 준비 완료!");
+
+            } catch (UnknownHostException e) {
+                System.out.println("서버를 찾을 수 없습니다.");
+                e.printStackTrace();
+                System.exit(0);
+            } catch (IOException e) {
+                System.out.println("서버와 통신 불가.");
+                e.printStackTrace();
+                System.exit(0);
+            }
+
             // 1. 아무것도 입력하지 않을경우 걸러내기
             // 2. 취소를 누르면 NULL값이 됨
             // 3. 여기서 수정하면 pw가 일정한 형식(영어, 숫자, 특수문자 혼용)없이도 통과됨. 그거 확인 추가
 
             login l = new login();
-            Connection con = null;
-            PreparedStatement pstmt = null;
 
-            con = l.getConnection();
+            // (1) 아이디 가져오기
 
-            String id;
-
-
+            // 1. 정보 설정
             String sql_query = String.format("SELECT id from student WHERE name = '%s'", nickName);
-            Statement stmt = con.createStatement();
+            //쿼리문 설정
+            InfoDTO dto = new InfoDTO();
+            dto.setCommand(Info.SENDDB);
+            dto.setMessage(sql_query);
 
-            ResultSet rset = stmt.executeQuery(sql_query);
-            rset.next();
 
-            id = rset.getString(1);
+            // 2. 전송
+            // 설정한 dto를 전송합니다.
+            try {
+                myWriter.writeObject(dto);
+                System.out.println("l.writer.writeObject(dto); 완료");
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+            try {
+                myWriter.flush();
+                System.out.println("l.writer.flush(); 완료");
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+            System.out.println("첫번째 전송");
+
+
+            // 3. 수신
+            // reader 용 dto 설정합니다.
+            try {
+                dto = (InfoDTO) myReader.readObject();
+                System.out.println("답장 수신 완료");
+                System.out.println(dto.getMessage());
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            } catch (ClassNotFoundException ex) {
+                throw new RuntimeException(ex);
+            }
+
+
+            String id = dto.getMessage();
 
 
             String[] options = {"이름", "비밀번호", "생일", "탈퇴"};
@@ -140,70 +191,213 @@ public class Chatroom extends JFrame {
             // 이름
             if (selection == 0) {
                 String answer = JOptionPane.showInputDialog("수정할 이름을 입력하세요", nickName);
-                String SQL = String.format("update student set name='%s' where id='%s'", answer, id);
-                pstmt = con.prepareStatement(SQL);
-                pstmt.executeUpdate();
+                if (answer != null && !((answer.trim()).equals(""))) {
 
+                    // 1. 정보 설정
+                    String SQL = String.format("UPDATE student set name='%s' where id='%s'", answer, id);
+                    //쿼리문 설정
+                    dto = new InfoDTO();
+                    dto.setCommand(Info.SENDDB);
+                    dto.setMessage(SQL);
 
-                nickName = answer;
-                chatNick.setText(nickName + " 님");
+                    // 2. 전송
+                    // 설정한 dto를 전송합니다.
+                    try {
+                        myWriter.writeObject(dto);
+                        // System.out.println("l.writer.writeObject(dto); 완료");
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    try {
+                        myWriter.flush();
+                        // System.out.println("l.writer.flush(); 완료");
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
 
-                con.close();
+                    nickName = answer;
+                    chatNick.setText(nickName + " 님");
+                }
             }
 
             // 비밀번호
             if (selection == 1) {
-
+                // 1. 정보 설정
                 sql_query = String.format("SELECT password from student WHERE id = '%s'", id);
-                stmt = con.createStatement();
+                //쿼리문 설정
+                dto = new InfoDTO();
+                dto.setCommand(Info.SENDDB);
+                dto.setMessage(sql_query);
 
-                rset = stmt.executeQuery(sql_query);
-                rset.next();
+                // 2. 전송
+                // 설정한 dto를 전송합니다.
+                // 원래 writer.writeObject(dto); / writer.flush(); 두 줄로 이루어졌으나 어쩐지... 익셉션(예외) 달라고해서...
+                try {
+                    myWriter.writeObject(dto);
+                    // System.out.println("l.writer.writeObject(dto); 완료");
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+                try {
+                    myWriter.flush();
+                    // System.out.println("l.writer.flush(); 완료");
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+                // System.out.println("첫번째 전송");
 
-                String pw = rset.getString(1);
+                // 3. 수신
+                // reader 용 dto 설정합니다.
+                try {
+                    dto = (InfoDTO) myReader.readObject();
+                    // System.out.println("답장 수신 완료");
+                    // System.out.println(dto.getMessage());
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                } catch (ClassNotFoundException ex) {
+                    throw new RuntimeException(ex);
+                }
+
+                String pw = dto.getMessage();
 
 
                 String answer = JOptionPane.showInputDialog("수정할 비밀번호를 입력하세요", pw);
+                if (answer != null && !((answer.trim()).equals(""))) {
 
-                String SQL = String.format("update student set password='%s' where id='%s'", answer, id);
-                pstmt = con.prepareStatement(SQL);
-                pstmt.executeUpdate();
+                    Pattern passPattern1 = Pattern.compile("^(?=.*[a-zA-Z])(?=.*\\d)(?=.*\\W).{8,20}$"); //8자 영문+특문+숫자
+                    Matcher passMatcher = passPattern1.matcher(answer);
+
+                    if (!passMatcher.find()) { // 여기서 틀린 창이 뜨면 바로 꺼지는 문제(while등으로 고칠 수 있겠지만...) 문제까지는 아니고... UI편의성?
+                        JOptionPane.showMessageDialog(null, "비밀번호는 영문+특수문자+숫자 8자로 구성되어야 합니다", "비밀번호 오류", 1);
+                    } else {
 
 
-                con.close();
+                        // 1. 정보 설정
+                        String SQL = String.format("UPDATE student set password='%s' where id='%s'", answer, id);
+                        //쿼리문 설정
+                        dto = new InfoDTO();
+                        dto.setCommand(Info.SENDDB);
+                        dto.setMessage(SQL);
+
+                        // 2. 전송
+                        // 설정한 dto를 전송합니다.
+                        try {
+                            myWriter.writeObject(dto);
+                            // System.out.println("l.writer.writeObject(dto); 완료");
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                        try {
+                            myWriter.flush();
+                            // System.out.println("l.writer.flush(); 완료");
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    }
+                }
             }
 
             // 생일
             if (selection == 2) {
-
+                // 1. 정보 설정
                 sql_query = String.format("SELECT birthday from student WHERE id = '%s'", id);
-                stmt = con.createStatement();
+                //쿼리문 설정
+                dto = new InfoDTO();
+                dto.setCommand(Info.SENDDB);
+                dto.setMessage(sql_query);
 
-                rset = stmt.executeQuery(sql_query);
-                rset.next();
+                // 2. 전송
+                // 설정한 dto를 전송합니다.
+                // 원래 writer.writeObject(dto); / writer.flush(); 두 줄로 이루어졌으나 어쩐지... 익셉션(예외) 달라고해서...
+                try {
+                    myWriter.writeObject(dto);
+                    // System.out.println("l.writer.writeObject(dto); 완료");
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+                try {
+                    myWriter.flush();
+                    // System.out.println("l.writer.flush(); 완료");
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+                // System.out.println("첫번째 전송");
 
-                String birth = rset.getString(1);
+                // 3. 수신
+                // reader 용 dto 설정합니다.
+                try {
+                    dto = (InfoDTO) myReader.readObject();
+                    // System.out.println("답장 수신 완료");
+                    // System.out.println(dto.getMessage());
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                } catch (ClassNotFoundException ex) {
+                    throw new RuntimeException(ex);
+                }
+
+                String birth = dto.getMessage();
+
 
                 String answer = JOptionPane.showInputDialog("수정할 생일을 입력하세요", birth);
 
-                String SQL = String.format("update student set birthday='%s' where id='%s'", answer, id);
-                pstmt = con.prepareStatement(SQL);
-                pstmt.executeUpdate();
+                // 1. 정보 설정
+                String SQL = String.format("UPDATE student set birthday='%s' where id='%s'", answer, id);
+                if (answer != null && !((answer.trim()).equals(""))) {
+                    //쿼리문 설정
+                    dto = new InfoDTO();
+                    dto.setCommand(Info.SENDDB);
+                    dto.setMessage(SQL);
 
-                con.close();
+                    // 2. 전송
+                    // 설정한 dto를 전송합니다.
+                    try {
+                        myWriter.writeObject(dto);
+                        // System.out.println("l.writer.writeObject(dto); 완료");
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    try {
+                        myWriter.flush();
+                        // System.out.println("l.writer.flush(); 완료");
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+
+                }
             }
 
             if (selection == 3) {
-                String SQL = String.format("delete from student where id='%s'", id);
-                pstmt = con.prepareStatement(SQL);
 
                 String[] yes_no = {"예(Y)", "아니오(N)"};
+
 
                 var unresign = JOptionPane.showOptionDialog(null, "탈퇴하시겠습니까?", "탈퇴",
                         0, 3, null, yes_no, yes_no[0]);
                 if (unresign == 0) {
-                    pstmt.executeUpdate();
-                    pstmt = con.prepareStatement(SQL);
+
+                    // 1. 정보 설정
+                    sql_query = String.format("DELETE from student where id='%s'", id);
+                    //쿼리문 설정
+                    dto = new InfoDTO();
+                    dto.setCommand(Info.SENDDB);
+                    dto.setMessage(sql_query);
+
+                    // 2. 전송
+                    // 설정한 dto를 전송합니다.
+                    // 원래 writer.writeObject(dto); / writer.flush(); 두 줄로 이루어졌으나 어쩐지... 익셉션(예외) 달라고해서...
+                    try {
+                        myWriter.writeObject(dto);
+                        // System.out.println("l.writer.writeObject(dto); 완료");
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    try {
+                        myWriter.flush();
+                        // System.out.println("l.writer.flush(); 완료");
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+
                 }
                 dispose();
                 new login();
@@ -211,8 +405,8 @@ public class Chatroom extends JFrame {
                 l.service();
 
 
-
             }
+
         }
     }
 
@@ -287,7 +481,6 @@ public class Chatroom extends JFrame {
             }
 
 
-
             public class Online extends JPanel
                     implements ListSelectionListener {
                 private JList list;
@@ -302,8 +495,6 @@ public class Chatroom extends JFrame {
 
                     listModel = new DefaultListModel();
                     listModel.addElement(""); // list가 비었을때도 출력시키는 방법 찾아야해
-
-
 
 
                     //Create the list and put it in a scroll pane.
@@ -325,11 +516,6 @@ public class Chatroom extends JFrame {
                 }
             }
         }
-
-
-
-
-
 
 
         class Bottom_left extends JPanel {
@@ -387,8 +573,7 @@ public class Chatroom extends JFrame {
         public void service() {
 
             // login 쪽에서 가져온 ServerIP&Portnum 입니다.
-            String serverIP = login.getServerIp();
-            int portNum = login.getPortnum();
+
 
             try {
                 socket = new Socket(serverIP, portNum);
@@ -406,36 +591,30 @@ public class Chatroom extends JFrame {
                 System.exit(0);
             }
 
-                nickName = loginNick;
-                chatNick.setText(loginNick + " 님");
+            nickName = loginNick;
+            chatNick.setText(loginNick + " 님");
 
 
-                try {
+            try {
 
-                    InfoDTO dto = new InfoDTO();
-                    dto.setCommand(Info.JOIN);
-                    dto.setNickName(nickName);
+                InfoDTO dto = new InfoDTO();
+                dto.setCommand(Info.JOIN);
+                dto.setNickName(nickName);
 
-                    writer.writeObject(dto);
-                    writer.flush();
+                writer.writeObject(dto);
+                writer.flush();
 
 
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
-                Thread t = new Thread(this);
-                t.start();
-                input.addActionListener(this);
-                sendBtn.addActionListener(this);
+            Thread t = new Thread(this);
+            t.start();
+            input.addActionListener(this);
+            sendBtn.addActionListener(this);
 
         }
-
-
-
-
-
-
 
 
         //Runnable
@@ -468,7 +647,6 @@ public class Chatroom extends JFrame {
                         listModel.removeElement(dto.getMessage());}*/
 
 
-
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {
@@ -490,7 +668,7 @@ public class Chatroom extends JFrame {
                 } else {
 
                     msg = msg.trim(); //
-                    if(!msg.equals("")){
+                    if (!msg.equals("")) {
                         dto.setCommand(Info.SEND);
                         dto.setMessage(msg);
                         dto.setNickName(nickName);
@@ -507,8 +685,6 @@ public class Chatroom extends JFrame {
         }
 
     }
-
-
 
 
 }

@@ -6,7 +6,6 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.sql.*;
-import java.util.*;
 import java.util.regex.*;
 import javax.swing.*;
 
@@ -515,14 +514,12 @@ class signupPanel extends JPanel {
                             JOptionPane.showMessageDialog(null, "아이디 중복", "아이디 중복 오류", 1);
                         } else
                             JOptionPane.showMessageDialog(null, "정보를 제대로 입력해주세요", "오류", 1);
-                    }else{
+                    } else {
                         int r = Integer.valueOf(dto.getMessage());
                         System.out.println("변경된 row " + r);
                         JOptionPane.showMessageDialog(null, "회원 가입 완료", "회원가입", 1);
                         l.card.previous(l.cardPanel); //회원가입이 완료되면 다시 로그인창으로 이동
                     }
-
-
 
 
                 }

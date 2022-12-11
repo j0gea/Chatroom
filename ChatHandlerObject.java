@@ -106,10 +106,10 @@ class ChatHandlerObject extends Thread //처리해주는 곳(소켓에 대한 �
                     // 2-1. SELECT문인 경우
                     if (sql_query.contains("SELECT")) {
                         ResultSet rset;
-                        try{
+                        try {
                             rset = stmt.executeQuery(sql_query);
                             //System.out.println("rset = stmt.executeQuery(sql_query); 처리중");
-                        } catch(SQLException ex) {
+                        } catch (SQLException ex) {
                             sendDto.setCommand(Info.SENDDB);
                             sendDto.setMessage("SQLException" + ex);
                             writer.writeObject(sendDto);
@@ -117,14 +117,13 @@ class ChatHandlerObject extends Thread //처리해주는 곳(소켓에 대한 �
                             break;
                         }
 
-
                         // 3. 결과 재전송
 
-                        if (rset.next()){
+                        if (rset.next()) {
                             sendDto.setCommand(Info.SENDDB);
                             sendDto.setMessage(rset.getString(1));
                             // System.out.println(rset.getString(1));
-                        } else{
+                        } else {
                             sendDto.setCommand(Info.SENDDB);
                             sendDto.setMessage("error");
                             // System.out.println("sendDto.setMessage("error");");
@@ -134,11 +133,22 @@ class ChatHandlerObject extends Thread //처리해주는 곳(소켓에 대한 �
                         // System.out.println("결과 재전송 완료");
 
                     }
-                    // 2-3. UPDATE 일경우
-                    else if(sql_query.contains("UPDATE")){
+                    // 2-2. UPDATE OR DELETE 일경우
+                    else if (sql_query.contains("UPDATE") || sql_query.contains("DELETE")) {
                         // System.out.println("UPDATE");
+                        PreparedStatement pstmt = con.prepareStatement(sql_query);
+                        pstmt.executeUpdate();
+
+                        con.close();
                     }
-                    // 2-3. INSERT문인 경우, UPDATE나 SELECT가 안올거다!!!!
+                    /* // 2-3. DELETE 일경우
+                    else if(sql_query.contains("DELETE")){
+                        PreparedStatement pstmt = con.prepareStatement(sql_query);
+                        pstmt.executeUpdate();
+
+                        con.close();
+                    }*/
+                    // 2-4. INSERT문인 경우, UPDATE나 SELECT가 안올거다!!!!
                     else {
                         System.out.println(dto.getMessage());
                         int r;
