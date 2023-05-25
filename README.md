@@ -1,5 +1,7 @@
 # Chatroom
 
+(래퍼런스) https://m.blog.naver.com/PostView.naver?isHttpsRedirect=true&blogId=ka28&logNo=221969060125
+
 ## 2022-12-12 up
 - 회원정보수정란 / 회원가입 모두 서버 -> DB 연동 구조로 바꿈
 
