@@ -1,5 +1,10 @@
 # Chatroom
 
+![게시판 채팅](https://github.com/j0gea/Chatroom/assets/137410154/2236cc65-4f83-4ae5-a112-c70bda8ad9e3)
+
+이전 계정에 올려두었던 2022학년도 2학기 자바프로그래밍및실습 강의 팀워크 자료입니다.
+JAVA를 사용한 소켓 통신 채팅방+라이브그림판 프로그램입니다.
+
 (래퍼런스) https://m.blog.naver.com/PostView.naver?isHttpsRedirect=true&blogId=ka28&logNo=221969060125
 
 ## 2022-12-12 up
